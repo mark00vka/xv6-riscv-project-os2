@@ -1,0 +1,3 @@
+/home/markovka/CLionProjects/os2/cmake-build-debug/CMakeFiles/os2.dir
+/home/markovka/CLionProjects/os2/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/markovka/CLionProjects/os2/cmake-build-debug/CMakeFiles/rebuild_cache.dir
