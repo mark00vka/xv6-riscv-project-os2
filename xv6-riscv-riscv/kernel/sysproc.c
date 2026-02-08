@@ -6,6 +6,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+#include "slab.h"
 
 uint64
 sys_exit(void)
@@ -106,4 +107,167 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+// Helper to get string argument from user space
+static int
+fetchstr_safe(uint64 addr, char *buf, int max)
+{
+  struct proc *p = myproc();
+  if(copyinstr(p->pagetable, buf, addr, max) < 0)
+    return -1;
+  return 0;
+}
+
+uint64
+sys_kmem_init(void)
+{
+  uint64 space;
+  int block_num;
+
+  argaddr(0, &space);
+  argint(1, &block_num);
+
+  // This syscall is typically only called during kernel initialization
+  // For user-space testing, we'll just return success
+  return 0;
+}
+
+uint64
+sys_kmem_cache_create(void)
+{
+  uint64 name_addr;
+  int size;
+  uint64 ctor_addr;
+  uint64 dtor_addr;
+
+  argaddr(0, &name_addr);
+  argint(1, &size);
+  argaddr(2, &ctor_addr);
+  argaddr(3, &dtor_addr);
+
+  // Get name string from user space
+  char name[64];
+  if(fetchstr_safe(name_addr, name, sizeof(name)) < 0)
+    return 0;
+
+  // Note: Constructor/destructor pointers from user space are ignored
+  // in this implementation for safety (can't call user functions from kernel)
+  kmem_cache_t *cache = kmem_cache_create(name, (size_t)size, 0, 0);
+
+  return (uint64)cache;
+}
+
+uint64
+sys_kmem_cache_shrink(void)
+{
+  uint64 cachep;
+
+  argaddr(0, &cachep);
+
+  if(cachep == 0)
+    return -1;
+
+  int result = kmem_cache_shrink((kmem_cache_t *)cachep);
+  return (uint64)result;
+}
+
+uint64
+sys_kmem_cache_alloc(void)
+{
+  uint64 cachep;
+
+  argaddr(0, &cachep);
+
+  if(cachep == 0)
+    return 0;
+
+  void *obj = kmem_cache_alloc((kmem_cache_t *)cachep);
+  return (uint64)obj;
+}
+
+uint64
+sys_kmem_cache_free(void)
+{
+  uint64 cachep;
+  uint64 objp;
+
+  argaddr(0, &cachep);
+  argaddr(1, &objp);
+
+  if(cachep == 0 || objp == 0)
+    return 0;
+
+  kmem_cache_free((kmem_cache_t *)cachep, (void *)objp);
+  return 0;
+}
+
+uint64
+sys_slab_alloc(void)
+{
+  int size;
+
+  argint(0, &size);
+
+  if(size <= 0)
+    return 0;
+
+  void *ptr = buffer_kmalloc((size_t)size);
+  return (uint64)ptr;
+}
+
+uint64
+sys_slab_free(void)
+{
+  uint64 objp;
+
+  argaddr(0, &objp);
+
+  if(objp == 0)
+    return 0;
+
+  buffer_kfree((void *)objp);
+  return 0;
+}
+
+uint64
+sys_kmem_cache_destroy(void)
+{
+  uint64 cachep;
+
+  argaddr(0, &cachep);
+
+  if(cachep == 0)
+    return 0;
+
+  kmem_cache_destroy((kmem_cache_t *)cachep);
+  return 0;
+}
+
+uint64
+sys_kmem_cache_info(void)
+{
+  uint64 cachep;
+
+  argaddr(0, &cachep);
+
+  if(cachep == 0)
+    return 0;
+
+  kmem_cache_info((kmem_cache_t *)cachep);
+  return 0;
+}
+
+uint64
+sys_kmem_cache_error(void)
+{
+  uint64 cachep;
+
+  argaddr(0, &cachep);
+
+  if(cachep == 0)
+    return 1;
+
+  int error = kmem_cache_error((kmem_cache_t *)cachep);
+  return (uint64)error;
 }

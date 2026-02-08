@@ -47,3 +47,18 @@ void printf(const char*, ...) __attribute__ ((format (printf, 1, 2)));
 // umalloc.c
 void* malloc(uint);
 void free(void*);
+
+// Slab allocator system calls
+struct kmem_cache_s;
+typedef struct kmem_cache_s kmem_cache_t;
+
+void kmem_init(void *space, int block_num);
+kmem_cache_t* kmem_cache_create(char *name, int size, void *ctor, void *dtor);
+int kmem_cache_shrink(kmem_cache_t *cachep);
+void* kmem_cache_alloc(kmem_cache_t *cachep);
+void kmem_cache_free(kmem_cache_t *cachep, void *objp);
+void* slab_alloc(int size);
+void slab_free(void *objp);
+void kmem_cache_destroy(kmem_cache_t *cachep);
+void kmem_cache_info(kmem_cache_t *cachep);
+int kmem_cache_error(kmem_cache_t *cachep);

@@ -17,6 +17,18 @@ main()
     printf("xv6 kernel is booting\n");
     printf("\n");
     kinit();         // physical page allocator
+
+    extern char end[];
+    char *slab_mem = (char*)PGROUNDUP((uint64)end);
+    slab_mem += 20*1024*1024;
+    int num_blocks = 1024;
+
+    printf("Initializing slab allocator...\n");
+    kmem_init((void*)slab_mem, num_blocks);
+    printf("Slab allocator initialized at %p with %d blocks\n", slab_mem, num_blocks);
+
+    run_slab_tests();
+
     kvminit();       // create kernel page table
     kvminithart();   // turn on paging
     procinit();      // process table

@@ -1,3 +1,4 @@
+#include "slab.h"
 struct buf;
 struct context;
 struct file;
@@ -181,5 +182,26 @@ void            virtio_disk_init(void);
 void            virtio_disk_rw(struct buf *, int);
 void            virtio_disk_intr(void);
 
+// slab.c
+typedef struct kmem_cache_s kmem_cache_t;
+void            kmem_init(void *space, int block_num);
+kmem_cache_t*   kmem_cache_create(const char *name, size_t size, void (*ctor)(void *), void (*dtor)(void *));
+int             kmem_cache_shrink(kmem_cache_t *cachep);
+void*           kmem_cache_alloc(kmem_cache_t *cachep);
+void            kmem_cache_free(kmem_cache_t *cachep, void *objp);
+void*           buffer_kmalloc(size_t size);
+void            buffer_kfree(const void *objp);
+void            kmem_cache_destroy(kmem_cache_t *cachep);
+void            kmem_cache_info(kmem_cache_t *cachep);
+int             kmem_cache_error(kmem_cache_t *cachep);
+
+// buddy.c
+void            buddy_init(void*, int);
+void*           buddy_alloc(int);
+void            buddy_free(void*, int);
+int             buddy_get_free_blocks(void);
+
+// slab_boot_test.c
+void            run_slab_tests(void);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
