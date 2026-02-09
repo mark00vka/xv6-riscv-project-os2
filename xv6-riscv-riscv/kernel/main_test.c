@@ -4,11 +4,12 @@
 #define shared_size (7)
 #define MASK (0xA5)
 
+#include <stdlib.h>
+
 #include "types.h"
 #include "riscv.h"
 #include "defs.h"
 #include "slab.h"
-#include "buddy.h"
 
 struct data_s {
     int id;
@@ -96,12 +97,7 @@ void runs(void(*work)(void*), struct data_s* data, int num) {
 int main() {
     printf("Test started.\n");
     int num_of_blocks = 1024;
-    // In kernel context, we might need a better way to get 'space'
-    // but for now let's just use kmalloc if it can handle such size
-    // or use a static array if it's just for testing.
-    // However, kmem_init is usually called once at boot.
-    // If this is a standalone test, it might be problematic.
-    void* space = buddy_alloc(num_of_blocks);
+    void* space = malloc(num_of_blocks);
     kmem_init(space, num_of_blocks);
     printf("Initialized slab allocator.\n");
     kmem_cache_t *shared = kmem_cache_create("shared object", shared_size, construct, 0);
@@ -112,5 +108,5 @@ int main() {
     runs(work, &data, RUN_NUM);
 
     kmem_cache_destroy(shared);
-    buddy_free(space, num_of_blocks);
+    free(space);
 }
