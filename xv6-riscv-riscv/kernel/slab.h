@@ -1,5 +1,3 @@
-// Slab allocator interface for kernel memory management
-
 #ifndef _SLAB_H_
 #define _SLAB_H_
 
@@ -7,7 +5,6 @@
 
 typedef unsigned long size_t;
 
-// Opaque handle to cache structure
 typedef struct kmem_cache_s kmem_cache_t;
 
 /**
@@ -56,13 +53,13 @@ void kmem_cache_free(kmem_cache_t *cachep, void *objp);
  * @param size Size in bytes
  * @return Pointer to allocated memory, or NULL on failure
  */
-void *buffer_kmalloc(size_t size);
+void *kmalloc(size_t size);
 
 /**
- * Free a small memory buffer allocated by buffer_kmalloc
+ * Free a small memory buffer allocated by kmalloc
  * @param objp Pointer to the memory to free
  */
-void buffer_kfree(const void *objp);
+void kfree(const void *objp);
 
 /**
  * Destroy a cache and free all its resources

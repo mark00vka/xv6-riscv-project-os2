@@ -1,5 +1,3 @@
-// Slab allocator implementation
-
 #include "types.h"
 #include "riscv.h"
 #include "slab.h"
@@ -18,7 +16,7 @@
 #define SLAB_FULL 1
 #define SLAB_EMPTY 2
 
-#define SLAB_ERR_DETECT 0xB16B00B5 
+#define SLAB_ERR_DETECT 0xB16B00B5
 
 #define OBJECTS_PER_SLAB(obj_size, slab_size) \
     (((slab_size) - sizeof(kmem_slab_t)) / ((obj_size) + sizeof(kmem_object_t)))
@@ -178,7 +176,6 @@ static void kmem_slab_destroy(kmem_cache_t *cache, kmem_slab_t *slab) {
         }
     }
 
-    // Free memory back to buddy allocator
     buddy_free(slab->mem, cache->slab_size);
 }
 
@@ -421,7 +418,7 @@ void kmem_cache_destroy(kmem_cache_t *cachep) {
     buddy_free(cachep, 1);
 }
 
-void *buffer_kmalloc(size_t size) {
+void *kmalloc(size_t size) {
     if (!allocator_initialized || size == 0 || size > MAX_BUFFER_SIZE) {
         return NULL;
     }
@@ -445,23 +442,23 @@ void *buffer_kmalloc(size_t size) {
             digits[digit_count++] = '0' + (temp % 10);
             temp /= 10;
         } while (temp > 0);
-        
+
         for (int i = digit_count - 1; i >= 0; i--) {
             *p++ = digits[i];
         }
         *p = '\0';
-        
+
         release(&buffer_cache_lock);
-        
+
         kmem_cache_t *cache = kmem_cache_create(name, rounded_size, NULL, NULL);
-        
+
         acquire(&buffer_cache_lock);
         buffer_caches[index] = cache;
     }
-    
+
     kmem_cache_t *cache = buffer_caches[index];
     release(&buffer_cache_lock);
-    
+
     if (!cache) {
         return NULL;
     }
@@ -469,7 +466,7 @@ void *buffer_kmalloc(size_t size) {
     return kmem_cache_alloc(cache);
 }
 
-void buffer_kfree(const void *objp) {
+void kfree(const void *objp) {
     if (!objp) {
         return;
     }
@@ -502,12 +499,12 @@ void kmem_cache_info(kmem_cache_t *cachep) {
     int total_blocks = cachep->num_slabs * cachep->slab_size;
     
     printf("Cache: %s\n", cachep->name);
-    printf("  Object size: %d bytes\n", (int)cachep->object_size);
-    printf("  Cache size: %d blocks\n", total_blocks);
-    printf("  Number of slabs: %d\n", cachep->num_slabs);
-    printf("  Objects per slab: %d\n", objects_per_slab);
-    printf("  Utilization: %d%%\n", percent_used);
-    printf("  Allocated objects: %d / %d\n", cachep->num_allocated, total_objects);
+    printf("\tObject size: %d bytes\n", (int)cachep->object_size);
+    printf("\tCache size: %d blocks\n", total_blocks);
+    printf("\tNumber of slabs: %d\n", cachep->num_slabs);
+    printf("\tObjects per slab: %d\n", objects_per_slab);
+    printf("\tUtilization: %d%%\n", percent_used);
+    printf("\tAllocated objects: %d / %d\n", cachep->num_allocated, total_objects);
     
     release(&cachep->lock);
 }

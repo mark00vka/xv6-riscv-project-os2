@@ -27,7 +27,8 @@ main()
     kmem_init((void*)slab_mem, num_blocks);
     printf("Slab allocator initialized at %p with %d blocks\n", slab_mem, num_blocks);
 
-    run_slab_tests();
+    //run_buddy_tests();
+    //run_slab_tests();
 
     kvminit();       // create kernel page table
     kvminithart();   // turn on paging

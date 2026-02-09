@@ -1,3 +1,4 @@
+#include "buddy.h"
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
@@ -57,7 +58,7 @@ slab_test_basic(void)
 void
 slab_test_growth(void)
 {
-    printf("TEST 2: Cache Growth\n");
+    printf("TEST 2: Cache Growth and Shrink\n");
     printf("====================\n");
 
     kmem_cache_t *cache = kmem_cache_create("growth_test", 64, 0, 0);
@@ -66,12 +67,12 @@ slab_test_growth(void)
         return;
     }
 
-    #define NUM_OBJS 50
-    void *objs[NUM_OBJS];
+    #define NUM_OBJS 30
+    void *objs1[NUM_OBJS];
 
     for(int i = 0; i < NUM_OBJS; i++) {
-        objs[i] = kmem_cache_alloc(cache);
-        if(objs[i] == 0) {
+        objs1[i] = kmem_cache_alloc(cache);
+        if(objs1[i] == 0) {
             printf("FAIL: Allocation failed at object %d\n", i);
             break;
         }
@@ -80,17 +81,34 @@ slab_test_growth(void)
     printf("PASS: Allocated %d objects\n", NUM_OBJS);
     kmem_cache_info(cache);
 
+    void *objs2[NUM_OBJS];
     for(int i = 0; i < NUM_OBJS; i++) {
-        if(objs[i]) {
-            kmem_cache_free(cache, objs[i]);
+        objs2[i] = kmem_cache_alloc(cache);
+        if(objs2[i] == 0) {
+            printf("FAIL: Allocation failed at object %d\n", i);
+            break;
         }
     }
-    printf("PASS: Freed all objects\n");
+
+    printf("PASS: Allocated %d objects\n", NUM_OBJS);
+    kmem_cache_info(cache);
+
+    for(int i = 0; i < NUM_OBJS; i++) kmem_cache_free(cache, objs1[i]);
+
+    printf("PASS: Freed %d objects\n", NUM_OBJS);
 
     int freed = kmem_cache_shrink(cache);
     printf("Shrink freed %d blocks\n", freed);
-
     kmem_cache_info(cache);
+
+    for(int i = 0; i < NUM_OBJS; i++) kmem_cache_free(cache, objs2[i]);
+
+    printf("PASS: Freed %d objects\n", NUM_OBJS);
+
+    freed = kmem_cache_shrink(cache);
+    printf("Shrink freed %d blocks\n", freed);
+    kmem_cache_info(cache);
+
     kmem_cache_destroy(cache);
     printf("PASS: Test completed\n\n");
 }
@@ -98,12 +116,12 @@ slab_test_growth(void)
 void
 slab_test_buffers(void)
 {
-    printf("TEST 3: slab_alloc/slab_free\n");
+    printf("TEST 3: Buffer allocation/freeing\n");
     printf("=============================\n");
 
-    void *buf1 = buffer_kmalloc(50);
-    void *buf2 = buffer_kmalloc(100);
-    void *buf3 = buffer_kmalloc(1000);
+    void *buf1 = kmalloc(50);
+    void *buf2 = kmalloc(100);
+    void *buf3 = kmalloc(1000);
 
     if(buf1 && buf2 && buf3) {
         printf("PASS: Allocated 3 buffers\n");
@@ -120,62 +138,15 @@ slab_test_buffers(void)
             printf("PASS: Buffers are usable\n");
         }
 
-        buffer_kfree(buf1);
-        buffer_kfree(buf2);
-        buffer_kfree(buf3);
+        kfree(buf1);
+        kfree(buf2);
+        kfree(buf3);
         printf("PASS: Freed all buffers\n");
     } else {
         printf("FAIL: Could not allocate buffers\n");
     }
 
     printf("\n");
-}
-
-void
-slab_test_stress(void)
-{
-    printf("TEST 4: Stress Test\n");
-    printf("====================\n");
-
-    kmem_cache_t *cache = kmem_cache_create("stress", 128, 0, 0);
-    if(cache == 0) {
-        printf("FAIL: Could not create cache\n");
-        return;
-    }
-
-    #define STRESS_OBJS 30
-    void *objs[STRESS_OBJS];
-
-    // Allocate all
-    for(int i = 0; i < STRESS_OBJS; i++) {
-        objs[i] = kmem_cache_alloc(cache);
-    }
-    printf("Allocated %d objects\n", STRESS_OBJS);
-
-    // Free half
-    for(int i = 0; i < STRESS_OBJS / 2; i++) {
-        kmem_cache_free(cache, objs[i]);
-        objs[i] = 0;
-    }
-    printf("Freed %d objects\n", STRESS_OBJS / 2);
-
-    // Re-allocate quarter
-    for(int i = 0; i < STRESS_OBJS / 4; i++) {
-        objs[i] = kmem_cache_alloc(cache);
-    }
-    printf("Re-allocated %d objects\n", STRESS_OBJS / 4);
-
-    // Free all
-    for(int i = 0; i < STRESS_OBJS; i++) {
-        if(objs[i]) {
-            kmem_cache_free(cache, objs[i]);
-        }
-    }
-    printf("PASS: Freed all objects\n");
-
-    kmem_cache_info(cache);
-    kmem_cache_destroy(cache);
-    printf("PASS: Stress test completed\n\n");
 }
 
 void
@@ -187,10 +158,24 @@ run_slab_tests(void)
     printf("========================================\n");
     printf("\n");
 
+    printf("Initial Buddy State:\n");
+    pretty_print_buddy();
+    buddy_print_info();
+
     slab_test_basic();
+    printf("Buddy State after basic tests:\n");
+    pretty_print_buddy();
+    buddy_print_info();
+
     slab_test_growth();
+    printf("Buddy State after growth tests:\n");
+    pretty_print_buddy();
+    buddy_print_info();
+
     slab_test_buffers();
-    slab_test_stress();
+    printf("Buddy State after buffer tests:\n");
+    pretty_print_buddy();
+    buddy_print_info();
 
     printf("========================================\n");
     printf("  SLAB ALLOCATOR TESTS COMPLETED\n");

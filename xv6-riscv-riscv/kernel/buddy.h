@@ -1,6 +1,3 @@
-// File: buddy.h
-// Buddy allocator interface - manages physical memory blocks
-
 #ifndef _BUDDY_H_
 #define _BUDDY_H_
 
@@ -28,9 +25,13 @@ void *buddy_alloc(int num_blocks);
 void buddy_free(void *ptr, int num_blocks);
 
 /**
- * Get the total number of free blocks available
- * @return Number of free blocks
+ * Print buddy allocator information
  */
-int buddy_get_free_blocks(void);
+void buddy_print_info(void);
+
+/**
+ * Pretty print buddy memory state
+ */
+void pretty_print_buddy(void);
 
 #endif // _BUDDY_H_

@@ -36,7 +36,7 @@ freerange(void *pa_start, void *pa_end)
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
-    kfree(p);
+    page_kfree(p);
 }
 
 // Free the page of physical memory pointed at by pa,
@@ -44,12 +44,12 @@ freerange(void *pa_start, void *pa_end)
 // call to kalloc().  (The exception is when
 // initializing the allocator; see kinit above.)
 void
-kfree(void *pa)
+page_kfree(void *pa)
 {
   struct run *r;
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
-    panic("kfree");
+    panic("page_kfree");
 
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);

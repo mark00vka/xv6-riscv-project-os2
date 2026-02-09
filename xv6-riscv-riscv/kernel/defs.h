@@ -58,7 +58,7 @@ void            ireclaim(int);
 
 // kalloc.c
 void*           kalloc(void);
-void            kfree(void *);
+void            page_kfree(void *);
 void            kinit(void);
 
 // log.c
@@ -189,8 +189,8 @@ kmem_cache_t*   kmem_cache_create(const char *name, size_t size, void (*ctor)(vo
 int             kmem_cache_shrink(kmem_cache_t *cachep);
 void*           kmem_cache_alloc(kmem_cache_t *cachep);
 void            kmem_cache_free(kmem_cache_t *cachep, void *objp);
-void*           buffer_kmalloc(size_t size);
-void            buffer_kfree(const void *objp);
+void*           kmalloc(size_t size);
+void            kfree(const void *objp);
 void            kmem_cache_destroy(kmem_cache_t *cachep);
 void            kmem_cache_info(kmem_cache_t *cachep);
 int             kmem_cache_error(kmem_cache_t *cachep);
@@ -200,6 +200,10 @@ void            buddy_init(void*, int);
 void*           buddy_alloc(int);
 void            buddy_free(void*, int);
 int             buddy_get_free_blocks(void);
+void            pretty_print_buddy(void);
+void            buddy_test_alloc_free(void);
+void            buddy_test_coalesce(void);
+void            run_buddy_tests(void);
 
 // slab_boot_test.c
 void            run_slab_tests(void);

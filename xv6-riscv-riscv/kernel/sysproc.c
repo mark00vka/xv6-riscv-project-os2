@@ -212,7 +212,7 @@ sys_slab_alloc(void)
   if(size <= 0)
     return 0;
 
-  void *ptr = buffer_kmalloc((size_t)size);
+  void *ptr = kmalloc((size_t)size);
   return (uint64)ptr;
 }
 
@@ -226,7 +226,7 @@ sys_slab_free(void)
   if(objp == 0)
     return 0;
 
-  buffer_kfree((void *)objp);
+  kfree((void *)objp);
   return 0;
 }
 
