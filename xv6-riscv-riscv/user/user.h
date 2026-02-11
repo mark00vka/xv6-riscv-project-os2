@@ -1,8 +1,11 @@
 #define SBRK_ERROR ((char *)-1)
+#include "../kernel/types.h"
 
 struct stat;
 
 // system calls
+void* sys_kmem_cache_alloc(int*);
+void sys_kmem_cache_free(int*, void*);
 int fork(void);
 int exit(int) __attribute__((noreturn));
 int wait(int*);
@@ -48,12 +51,12 @@ void printf(const char*, ...) __attribute__ ((format (printf, 1, 2)));
 void* malloc(uint);
 void free(void*);
 
-// Slab allocator system calls
+// allocator system calls
 struct kmem_cache_s;
 typedef struct kmem_cache_s kmem_cache_t;
 
 void kmem_init(void *space, int block_num);
-kmem_cache_t* kmem_cache_create(const char *name, int size, void (*ctor)(void *), void (*dtor)(void *));
+kmem_cache_t* kmem_cache_create(const char *name, size_t size, void (*ctor)(void *), void (*dtor)(void *));
 int kmem_cache_shrink(kmem_cache_t *cachep);
 void* kmem_cache_alloc(kmem_cache_t *cachep);
 void kmem_cache_free(kmem_cache_t *cachep, void *objp);

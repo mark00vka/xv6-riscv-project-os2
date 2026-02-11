@@ -9,7 +9,7 @@ print "#include \"kernel/syscall.h\"\n";
 sub entry {
     my $prefix = "sys_";
     my $name = shift;
-    if ($name eq "sbrk") {
+    if ($name eq "sbrk" || $name eq "kmem_cache_alloc" || $name eq "kmem_cache_free") {
 	print ".global $prefix$name\n";
 	print "$prefix$name:\n";
     } else {

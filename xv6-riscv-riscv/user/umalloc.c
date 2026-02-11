@@ -1,7 +1,9 @@
-#include "kernel/types.h"
-#include "kernel/stat.h"
-#include "user/user.h"
-#include "kernel/param.h"
+#include "../kernel/types.h"
+#include "../kernel/stat.h"
+#include "user.h"
+#include "../kernel/param.h"
+#include "../kernel/riscv.h"
+#include "../kernel/slab.h"
 
 // Memory allocator by Kernighan and Ritchie,
 // The C programming Language, 2nd ed.  Section 8.7.
@@ -87,4 +89,21 @@ malloc(uint nbytes)
       if((p = morecore(nunits)) == 0)
         return 0;
   }
+}
+
+void *
+kmem_cache_alloc(kmem_cache_t *cachep)
+{
+  void* ret = sys_kmem_cache_alloc((int*)cachep);
+  if (ret && cachep && cachep->ctor)
+    cachep->ctor(ret);
+  return ret;
+}
+
+void
+kmem_cache_free(kmem_cache_t *cachep, void *objp)
+{
+  if (objp && cachep && cachep->dtor)
+    cachep->dtor(objp);
+  sys_kmem_cache_free((int*)cachep, objp);
 }

@@ -132,16 +132,6 @@ sys_kmem_init(void)
   argint(1, &block_num);
 
   struct proc *p = myproc();
-  // uint64 va = PGROUNDDOWN(space);
-  // uint64 size = (uint64)block_num * BLOCK_SIZE;
-  // uint64 pa = walkaddr(p->pagetable, va);
-  // if (pa == 0) return -1;
-  //
-  // if (!ismapped(kernel_pagetable, va))
-  //   if (mappages(kernel_pagetable, va, size, pa, PTE_R | PTE_W) != 0)
-  //     return -1;
-  //
-  // sfence_vma();
 
   for (uint64 va = PGROUNDDOWN(space); va < space + (uint64)block_num * BLOCK_SIZE; va += PGSIZE) {
     uint64 pa = walkaddr(p->pagetable, va);
@@ -203,7 +193,9 @@ sys_kmem_cache_alloc(void)
   if(cachep == 0)
     return 0;
 
-  void *obj = kmem_cache_alloc((kmem_cache_t *)cachep);
+  kmem_cache_t *cache = (kmem_cache_t *)cachep;
+  void *obj = kmem_cache_alloc(cache);
+
   return (uint64)obj;
 }
 

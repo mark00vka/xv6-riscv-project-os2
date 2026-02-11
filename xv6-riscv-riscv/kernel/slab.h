@@ -2,10 +2,57 @@
 #define _SLAB_H_
 
 #define BLOCK_SIZE (4096)
+#define CACHE_NAME_LEN 32
+
+#include "types.h"
+#include "spinlock.h"
 
 typedef unsigned long size_t;
 
 typedef struct kmem_cache_s kmem_cache_t;
+struct spinlock;
+
+typedef struct kmem_slab_s {
+    struct kmem_slab_s *next;
+    struct kmem_slab_s *prev;
+    void *mem;
+    uint num_objects_max;
+    uint num_free;
+    void *free_list;
+    kmem_cache_t *cache;
+} kmem_slab_t;
+
+typedef struct kmem_object_s {
+    struct kmem_object_s *next;
+    kmem_slab_t *slab;
+} kmem_object_t;
+
+struct kmem_cache_s {
+    char name[CACHE_NAME_LEN];
+    size_t object_size;
+    size_t aligned_size;
+    int slab_size;
+    uint error_detection;
+
+    void (*ctor)(void *);
+    void (*dtor)(void *);
+
+    kmem_slab_t *slabs_partial;
+    kmem_slab_t *slabs_full;
+    kmem_slab_t *slabs_empty;
+
+    uint num_slabs;
+    uint num_allocated;
+    uint num_grown;
+    uint num_shrunk;
+    int last_shrink_state;
+
+    int error_state;
+
+    struct spinlock lock;
+
+    struct kmem_cache_s *next;
+};
 
 /**
  * Initialize the slab allocator system

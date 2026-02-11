@@ -96,7 +96,6 @@ void main() {
     int num_of_blocks = 1024;
     void* space = malloc(num_of_blocks * BLOCK_SIZE);
     kmem_init(space, num_of_blocks);
-    printf("user ctor ptr %p\n", construct);
     kmem_cache_t *shared = kmem_cache_create("shared object", shared_size, construct, 0);
 
     struct data_s data;

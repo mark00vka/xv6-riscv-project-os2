@@ -4,11 +4,9 @@
 #include "buddy.h"
 #include "defs.h"
 #include "memlayout.h"
-#include "spinlock.h"
 
 #define NULL ((void*)0)
 
-#define CACHE_NAME_LEN 32
 #define MIN_BUFFER_SIZE (1<<5) // 2^5
 #define MAX_BUFFER_SIZE (1<<17) // 2^17
 #define NUM_BUFFER_CACHES 13 // 2^5 - 2^17
@@ -22,48 +20,6 @@
 #define OBJECTS_PER_SLAB(obj_size, slab_size) \
     (((slab_size) - sizeof(kmem_slab_t)) / ((obj_size) + sizeof(kmem_object_t)))
 
-typedef struct kmem_slab_s {
-    struct kmem_slab_s *next;
-    struct kmem_slab_s *prev;
-    void *mem; // Pointer to actual slab memory
-    uint num_objects_max;
-    uint num_free;
-    void *free_list; // Head of a free object list
-    kmem_cache_t *cache;
-} kmem_slab_t;
-
-// Stored before each object in a free list
-typedef struct kmem_object_s {
-    struct kmem_object_s *next;
-    kmem_slab_t *slab;
-} kmem_object_t;
-
-struct kmem_cache_s {
-    char name[CACHE_NAME_LEN];
-    size_t object_size;
-    size_t aligned_size;
-    int slab_size; // Size of slab in blocks
-    uint error_detection;
-
-    void (*ctor)(void *);
-    void (*dtor)(void *);
-
-    kmem_slab_t *slabs_partial;
-    kmem_slab_t *slabs_full;
-    kmem_slab_t *slabs_empty;
-
-    uint num_slabs; // Total number of slabs
-    uint num_allocated; // Total allocated objects
-    uint num_grown;
-    uint num_shrunk;
-    int last_shrink_state;
-
-    int error_state;
-
-    struct spinlock lock;
-
-    struct kmem_cache_s *next;
-};
 
 static kmem_cache_t *cache_list = NULL;
 static struct spinlock cache_list_lock;
@@ -155,11 +111,6 @@ static kmem_slab_t *kmem_slab_create(kmem_cache_t *cache) {
         kmem_object_t *object = (kmem_object_t *)obj_addr;
         object->next = (kmem_object_t *)slab->free_list;
         slab->free_list = object;
-
-        if (cache->ctor) {
-            void *obj = obj_addr + sizeof(kmem_object_t);
-            cache->ctor(obj);
-        }
     }
 
     return slab;
@@ -300,6 +251,10 @@ void *kmem_cache_alloc(kmem_cache_t *cachep) {
     if (slab->num_free == 0) {
         remove_slab_from_list(&cachep->slabs_partial, slab);
         add_slab_to_list(&cachep->slabs_full, slab);
+    }
+
+    if (cachep->ctor) {
+        //cachep->ctor((void *)((char *)object + sizeof(kmem_object_t)));
     }
 
     release(&cachep->lock);
