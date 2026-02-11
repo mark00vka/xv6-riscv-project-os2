@@ -4,6 +4,9 @@
 #include "param.h"
 #include "memlayout.h"
 #include "spinlock.h"
+#include "slab.h"
+
+extern pagetable_t kernel_pagetable;
 #include "proc.h"
 #include "vm.h"
 #include "slab.h"
@@ -128,8 +131,29 @@ sys_kmem_init(void)
   argaddr(0, &space);
   argint(1, &block_num);
 
-  // This syscall is typically only called during kernel initialization
-  // For user-space testing, we'll just return success
+  struct proc *p = myproc();
+  // uint64 va = PGROUNDDOWN(space);
+  // uint64 size = (uint64)block_num * BLOCK_SIZE;
+  // uint64 pa = walkaddr(p->pagetable, va);
+  // if (pa == 0) return -1;
+  //
+  // if (!ismapped(kernel_pagetable, va))
+  //   if (mappages(kernel_pagetable, va, size, pa, PTE_R | PTE_W) != 0)
+  //     return -1;
+  //
+  // sfence_vma();
+
+  for (uint64 va = PGROUNDDOWN(space); va < space + (uint64)block_num * BLOCK_SIZE; va += PGSIZE) {
+    uint64 pa = walkaddr(p->pagetable, va);
+    if (pa == 0) return -1;
+    if (!ismapped(kernel_pagetable, va)) {
+      if (mappages(kernel_pagetable, va, PGSIZE, pa, PTE_R | PTE_W) != 0)
+        return -1;
+    }
+  }
+  sfence_vma();
+
+  kmem_init((void*)space, block_num);
   return 0;
 }
 
@@ -146,14 +170,11 @@ sys_kmem_cache_create(void)
   argaddr(2, &ctor_addr);
   argaddr(3, &dtor_addr);
 
-  // Get name string from user space
   char name[64];
   if(fetchstr_safe(name_addr, name, sizeof(name)) < 0)
     return 0;
 
-  // Note: Constructor/destructor pointers from user space are ignored
-  // in this implementation for safety (can't call user functions from kernel)
-  kmem_cache_t *cache = kmem_cache_create(name, (size_t)size, 0, 0);
+  kmem_cache_t *cache = kmem_cache_create(name, (size_t)size, (void*)ctor_addr, (void*)dtor_addr);
 
   return (uint64)cache;
 }
@@ -203,7 +224,7 @@ sys_kmem_cache_free(void)
 }
 
 uint64
-sys_slab_alloc(void)
+sys_kmalloc(void)
 {
   int size;
 
@@ -217,7 +238,7 @@ sys_slab_alloc(void)
 }
 
 uint64
-sys_slab_free(void)
+sys_kfree(void)
 {
   uint64 objp;
 

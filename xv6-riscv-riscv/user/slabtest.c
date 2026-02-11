@@ -1,6 +1,6 @@
 #include "../kernel/types.h"
 #include "../kernel/stat.h"
-#include "../user/user.h"
+#include "user.h"
 
 // Test structure
 struct test_obj {
@@ -118,9 +118,9 @@ test_slab_alloc(void)
     printf("=============================\n");
 
     // Allocate buffers of various sizes
-    void *buf1 = slab_alloc(50);
-    void *buf2 = slab_alloc(100);
-    void *buf3 = slab_alloc(1000);
+    void *buf1 = kmalloc(50);
+    void *buf2 = kmalloc(100);
+    void *buf3 = kmalloc(1000);
 
     if(buf1 && buf2 && buf3) {
         printf("PASS: Allocated 3 buffers\n");
@@ -141,9 +141,9 @@ test_slab_alloc(void)
         }
 
         // Free buffers
-        slab_free(buf1);
-        slab_free(buf2);
-        slab_free(buf3);
+        kfree(buf1);
+        kfree(buf2);
+        kfree(buf3);
         printf("PASS: Freed all buffers\n");
     } else {
         printf("FAIL: Could not allocate buffers\n");

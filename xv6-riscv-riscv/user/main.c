@@ -4,12 +4,10 @@
 #define shared_size (7)
 #define MASK (0xA5)
 
-#include <stdlib.h>
+#define BLOCK_SIZE (4096)
 
-#include "types.h"
-#include "riscv.h"
-#include "defs.h"
-#include "slab.h"
+#include "../kernel/types.h"
+#include "user.h"
 
 struct data_s {
     int id;
@@ -94,12 +92,10 @@ void runs(void(*work)(void*), struct data_s* data, int num) {
     }
 }
 
-int main() {
-    printf("Test started.\n");
+void main() {
     int num_of_blocks = 1024;
-    void* space = malloc(num_of_blocks);
+    void* space = malloc(num_of_blocks * BLOCK_SIZE);
     kmem_init(space, num_of_blocks);
-    printf("Initialized slab allocator.\n");
     kmem_cache_t *shared = kmem_cache_create("shared object", shared_size, construct, 0);
 
     struct data_s data;

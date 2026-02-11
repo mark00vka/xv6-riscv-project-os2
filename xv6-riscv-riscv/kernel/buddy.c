@@ -111,7 +111,7 @@ void buddy_init(void *space, int block_num) {
     buddy.free_blocks = block_num;
     buddy.max_order = max_order;
 
-    int free_list_size = max_order * sizeof(struct free_block *);
+    int free_list_size = max_order * sizeof(struct buddy_block *);
     memset(buddy.free_list, 0, free_list_size);
 
     buddy.memory_start = (char*)space;

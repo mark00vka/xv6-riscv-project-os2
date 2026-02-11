@@ -106,8 +106,8 @@ extern uint64 sys_kmem_cache_create(void);
 extern uint64 sys_kmem_cache_shrink(void);
 extern uint64 sys_kmem_cache_alloc(void);
 extern uint64 sys_kmem_cache_free(void);
-extern uint64 sys_slab_alloc(void);
-extern uint64 sys_slab_free(void);
+extern uint64 sys_kmalloc(void);
+extern uint64 sys_kfree(void);
 extern uint64 sys_kmem_cache_destroy(void);
 extern uint64 sys_kmem_cache_info(void);
 extern uint64 sys_kmem_cache_error(void);
@@ -141,8 +141,8 @@ static uint64 (*syscalls[])(void) = {
 [SYS_kmem_cache_shrink]   sys_kmem_cache_shrink,
 [SYS_kmem_cache_alloc]    sys_kmem_cache_alloc,
 [SYS_kmem_cache_free]     sys_kmem_cache_free,
-[SYS_slab_alloc]          sys_slab_alloc,
-[SYS_slab_free]           sys_slab_free,
+[SYS_kmalloc]             sys_kmalloc,
+[SYS_kfree]               sys_kfree,
 [SYS_kmem_cache_destroy]  sys_kmem_cache_destroy,
 [SYS_kmem_cache_info]     sys_kmem_cache_info,
 [SYS_kmem_cache_error]    sys_kmem_cache_error,

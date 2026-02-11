@@ -3,6 +3,7 @@
 #include "slab.h"
 #include "buddy.h"
 #include "defs.h"
+#include "memlayout.h"
 #include "spinlock.h"
 
 #define NULL ((void*)0)
@@ -187,11 +188,9 @@ static int kmem_cache_grow(kmem_cache_t *cache) {
         return -1;
     }
 
-    // Add to empty list
     add_slab_to_list(&cache->slabs_empty, slab);
     cache->num_slabs++;
     cache->num_grown++;
-
     return 0;
 }
 
@@ -212,14 +211,17 @@ kmem_cache_t *kmem_cache_create(const char *name, size_t size,
                                 void (*ctor)(void *),
                                 void (*dtor)(void *)) {
     if (!allocator_initialized) {
+        //panic("allocator not initialized");
         return NULL;
     }
 
     if (size == 0 || size > MAX_BUFFER_SIZE) {
+        //panic("invalid size");
         return NULL;
     }
 
     kmem_cache_t *cache = (kmem_cache_t *)buddy_alloc(1);
+
     if (!cache) {
         return NULL;
     }
@@ -498,7 +500,7 @@ void kmem_cache_info(kmem_cache_t *cachep) {
     
     int total_blocks = cachep->num_slabs * cachep->slab_size;
     
-    printf("Cache: %s\n", cachep->name);
+    printf("\nCache: %s\n", cachep->name);
     printf("\tObject size: %d bytes\n", (int)cachep->object_size);
     printf("\tCache size: %d blocks\n", total_blocks);
     printf("\tNumber of slabs: %d\n", cachep->num_slabs);
