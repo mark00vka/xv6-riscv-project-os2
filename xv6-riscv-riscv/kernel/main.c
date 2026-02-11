@@ -25,9 +25,6 @@ main()
     printf("xv6 kernel is booting\n");
     printf("\n");
 
-    //run_buddy_tests();
-    //run_slab_tests();
-
     kvminit();       // create kernel page table
     kvminithart();   // turn on paging
     procinit();      // process table

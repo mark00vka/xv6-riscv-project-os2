@@ -25,7 +25,7 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 // there should be one superblock per disk device, but we run with
 // only one device
-struct superblock sb; 
+struct superblock *sb; 
 
 // Read the super block.
 static void
@@ -41,10 +41,12 @@ readsb(int dev, struct superblock *sb)
 // Init fs
 void
 fsinit(int dev) {
-  readsb(dev, &sb);
-  if(sb.magic != FSMAGIC)
+  sb = (struct superblock*) kmalloc(sizeof(struct superblock));
+  if (sb == 0) panic("fsinit: kmalloc sb");
+  readsb(dev, sb);
+  if(sb->magic != FSMAGIC)
     panic("invalid file system");
-  initlog(dev, &sb);
+  initlog(dev, sb);
   ireclaim(dev);
 }
 
@@ -71,9 +73,9 @@ balloc(uint dev)
   struct buf *bp;
 
   bp = 0;
-  for(b = 0; b < sb.size; b += BPB){
-    bp = bread(dev, BBLOCK(b, sb));
-    for(bi = 0; bi < BPB && b + bi < sb.size; bi++){
+  for(b = 0; b < sb->size; b += BPB){
+    bp = bread(dev, BBLOCK(b, (*sb)));
+    for(bi = 0; bi < BPB && b + bi < sb->size; bi++){
       m = 1 << (bi % 8);
       if((bp->data[bi/8] & m) == 0){  // Is block free?
         bp->data[bi/8] |= m;  // Mark block in use.
@@ -96,7 +98,7 @@ bfree(int dev, uint b)
   struct buf *bp;
   int bi, m;
 
-  bp = bread(dev, BBLOCK(b, sb));
+  bp = bread(dev, BBLOCK(b, (*sb)));
   bi = b % BPB;
   m = 1 << (bi % 8);
   if((bp->data[bi/8] & m) == 0)
@@ -184,7 +186,7 @@ void
 iinit()
 {
   int i = 0;
-  
+
   initlock(&itable.lock, "itable");
   itable.inode = (struct inode*)kmalloc(sizeof(struct inode) * NINODE);
   if(itable.inode == 0)
@@ -208,8 +210,8 @@ ialloc(uint dev, short type)
   struct buf *bp;
   struct dinode *dip;
 
-  for(inum = 1; inum < sb.ninodes; inum++){
-    bp = bread(dev, IBLOCK(inum, sb));
+  for(inum = 1; inum < sb->ninodes; inum++){
+    bp = bread(dev, IBLOCK(inum, (*sb)));
     dip = (struct dinode*)bp->data + inum%IPB;
     if(dip->type == 0){  // a free inode
       memset(dip, 0, sizeof(*dip));
@@ -234,7 +236,7 @@ iupdate(struct inode *ip)
   struct buf *bp;
   struct dinode *dip;
 
-  bp = bread(ip->dev, IBLOCK(ip->inum, sb));
+  bp = bread(ip->dev, IBLOCK(ip->inum, (*sb)));
   dip = (struct dinode*)bp->data + ip->inum%IPB;
   dip->type = ip->type;
   dip->major = ip->major;
@@ -307,7 +309,7 @@ ilock(struct inode *ip)
   acquiresleep(&ip->lock);
 
   if(ip->valid == 0){
-    bp = bread(ip->dev, IBLOCK(ip->inum, sb));
+    bp = bread(ip->dev, IBLOCK(ip->inum, (*sb)));
     dip = (struct dinode*)bp->data + ip->inum%IPB;
     ip->type = dip->type;
     ip->major = dip->major;
@@ -378,9 +380,9 @@ iunlockput(struct inode *ip)
 void
 ireclaim(int dev)
 {
-  for (int inum = 1; inum < sb.ninodes; inum++) {
+  for (int inum = 1; inum < sb->ninodes; inum++) {
     struct inode *ip = 0;
-    struct buf *bp = bread(dev, IBLOCK(inum, sb));
+    struct buf *bp = bread(dev, IBLOCK(inum, (*sb)));
     struct dinode *dip = (struct dinode *)bp->data + inum % IPB;
     if (dip->type != 0 && dip->nlink == 0) {  // is an orphaned inode
       printf("ireclaim: orphaned inode %d\n", inum);
