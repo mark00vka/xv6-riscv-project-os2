@@ -53,7 +53,7 @@ struct kmem_cache_s;
 typedef struct kmem_cache_s kmem_cache_t;
 
 void kmem_init(void *space, int block_num);
-kmem_cache_t* kmem_cache_create(const char *name, int size, void *ctor, void *dtor);
+kmem_cache_t* kmem_cache_create(const char *name, int size, void (*ctor)(void *), void (*dtor)(void *));
 int kmem_cache_shrink(kmem_cache_t *cachep);
 void* kmem_cache_alloc(kmem_cache_t *cachep);
 void kmem_cache_free(kmem_cache_t *cachep, void *objp);
