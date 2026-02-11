@@ -5,10 +5,11 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "slab.h"
 
 struct cpu cpus[NCPU];
 
-struct proc proc[NPROC];
+struct proc *proc;
 
 struct proc *initproc;
 
@@ -51,6 +52,13 @@ procinit(void)
   
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
+
+  // allocate proc table dynamically to avoid static arrays
+  proc = (struct proc*)kmalloc(sizeof(struct proc) * NPROC);
+  if(proc == 0)
+    panic("proc alloc");
+  memset(proc, 0, sizeof(struct proc) * NPROC);
+
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
       p->state = UNUSED;

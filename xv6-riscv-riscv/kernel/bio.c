@@ -22,16 +22,18 @@
 #include "defs.h"
 #include "fs.h"
 #include "buf.h"
+#include "slab.h"
 
 struct {
   struct spinlock lock;
-  struct buf buf[NBUF];
-
   // Linked list of all buffers, through prev/next.
   // Sorted by how recently the buffer was used.
   // head.next is most recent, head.prev is least.
   struct buf head;
 } bcache;
+
+static kmem_cache_t *buf_cache;
+static int bcache_count;
 
 void
 binit(void)
@@ -43,13 +45,25 @@ binit(void)
   // Create linked list of buffers
   bcache.head.prev = &bcache.head;
   bcache.head.next = &bcache.head;
-  for(b = bcache.buf; b < bcache.buf+NBUF; b++){
+
+  // Create buffer cache for struct buf objects
+  buf_cache = kmem_cache_create("buf", sizeof(struct buf), 0, 0);
+  if(buf_cache == 0)
+    panic("buf_cache");
+
+  // Allocate NBUF buffers and insert into MRU list
+  for(int i = 0; i < NBUF; i++){
+    b = (struct buf*)kmem_cache_alloc(buf_cache);
+    if(b == 0)
+      panic("binit alloc");
+    memset(b, 0, sizeof(*b));
+    initsleeplock(&b->lock, "buffer");
     b->next = bcache.head.next;
     b->prev = &bcache.head;
-    initsleeplock(&b->lock, "buffer");
     bcache.head.next->prev = b;
     bcache.head.next = b;
   }
+  bcache_count = NBUF;
 }
 
 // Look through buffer cache for block on device dev.
@@ -85,7 +99,26 @@ bget(uint dev, uint blockno)
       return b;
     }
   }
-  panic("bget: no buffers");
+
+  // No free buffers: grow cache by allocating a new one.
+  b = (struct buf*)kmem_cache_alloc(buf_cache);
+  if(b == 0)
+    panic("bget: no memory");
+  memset(b, 0, sizeof(*b));
+  initsleeplock(&b->lock, "buffer");
+  b->dev = dev;
+  b->blockno = blockno;
+  b->valid = 0;
+  b->refcnt = 1;
+  // insert at MRU head
+  b->next = bcache.head.next;
+  b->prev = &bcache.head;
+  bcache.head.next->prev = b;
+  bcache.head.next = b;
+  bcache_count++;
+  release(&bcache.lock);
+  acquiresleep(&b->lock);
+  return b;
 }
 
 // Return a locked buf with the contents of the indicated block.
@@ -131,6 +164,20 @@ brelse(struct buf *b)
     b->prev = &bcache.head;
     bcache.head.next->prev = b;
     bcache.head.next = b;
+
+    // opportunistic shrink: free LRU buffers beyond baseline NBUF
+    while(bcache_count > NBUF) {
+      struct buf *t = bcache.head.prev; // LRU
+      if(t == &bcache.head || t == b || t->refcnt != 0)
+        break;
+      // unlink t
+      t->next->prev = t->prev;
+      t->prev->next = t->next;
+      // release its sleeplock before freeing (should be unlocked here)
+      // no explicit destroy for sleeplock in xv6; safe to free struct.
+      kmem_cache_free(buf_cache, t);
+      bcache_count--;
+    }
   }
   
   release(&bcache.lock);

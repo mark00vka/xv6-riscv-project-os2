@@ -7,17 +7,20 @@
 #include "fs.h"
 #include "sleeplock.h"
 #include "file.h"
+#include "slab.h"
 
 #define PIPESIZE 512
 
 struct pipe {
   struct spinlock lock;
-  char data[PIPESIZE];
+  char *data;
   uint nread;     // number of bytes read
   uint nwrite;    // number of bytes written
   int readopen;   // read fd is still open
   int writeopen;  // write fd is still open
 };
+
+static kmem_cache_t *pipe_cache;
 
 int
 pipealloc(struct file **f0, struct file **f1)
@@ -26,10 +29,23 @@ pipealloc(struct file **f0, struct file **f1)
 
   pi = 0;
   *f0 = *f1 = 0;
+
   if((*f0 = filealloc()) == 0 || (*f1 = filealloc()) == 0)
     goto bad;
-  if((pi = (struct pipe*)kalloc()) == 0)
+
+  if(pipe_cache == 0){
+    pipe_cache = kmem_cache_create("pipe", sizeof(struct pipe), 0, 0);
+    if(pipe_cache == 0)
+      goto bad;
+  }
+
+  if((pi = (struct pipe*)kmem_cache_alloc(pipe_cache)) == 0)
     goto bad;
+
+  pi->data = (char*)kmalloc(PIPESIZE);
+  if(pi->data == 0)
+    goto bad;
+
   pi->readopen = 1;
   pi->writeopen = 1;
   pi->nwrite = 0;
@@ -46,8 +62,12 @@ pipealloc(struct file **f0, struct file **f1)
   return 0;
 
  bad:
-  if(pi)
-    page_kfree((char*)pi);
+  if(pi){
+    if(pi->data)
+      kfree(pi->data);
+    if(pipe_cache)
+      kmem_cache_free(pipe_cache, pi);
+  }
   if(*f0)
     fileclose(*f0);
   if(*f1)
@@ -68,7 +88,8 @@ pipeclose(struct pipe *pi, int writable)
   }
   if(pi->readopen == 0 && pi->writeopen == 0){
     release(&pi->lock);
-    page_kfree((char*)pi);
+    kfree(pi->data);
+    kmem_cache_free(pipe_cache, pi);
   } else
     release(&pi->lock);
 }

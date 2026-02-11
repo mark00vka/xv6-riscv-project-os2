@@ -8,6 +8,7 @@
 #include "spinlock.h"
 #include "riscv.h"
 #include "defs.h"
+#include "slab.h"
 
 void freerange(void *pa_start, void *pa_end);
 
@@ -27,7 +28,8 @@ void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
-  freerange(end, (void*)PHYSTOP);
+  // Reserve a region at the top of physical memory for the slab/buddy allocator.
+  freerange(end, (void*)(PHYSTOP - (uint64)SLAB_RESERVED_BLOCKS * BLOCK_SIZE));
 }
 
 void

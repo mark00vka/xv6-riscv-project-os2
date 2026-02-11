@@ -3,6 +3,7 @@
 #include "memlayout.h"
 #include "riscv.h"
 #include "defs.h"
+#include "slab.h"
 
 volatile static int started = 0;
 
@@ -11,21 +12,18 @@ void
 main()
 {
   if(cpuid() == 0){
+    kinit();         // physical page allocator
+
+    // Initialize slab/buddy allocator with reserved top-of-physical memory region
+    void *slab_mem = (void*)(PHYSTOP - (uint64)SLAB_RESERVED_BLOCKS * BLOCK_SIZE);
+    int num_blocks = SLAB_RESERVED_BLOCKS;
+    kmem_init((void*)slab_mem, num_blocks);
+
     consoleinit();
     printfinit();
     printf("\n");
     printf("xv6 kernel is booting\n");
     printf("\n");
-    kinit();         // physical page allocator
-
-    /*
-    extern char end[];
-    char *slab_mem = (char*)PGROUNDUP((uint64)end);
-    slab_mem += 20*1024*1024;
-    int num_blocks = 1024;
-    kmem_init((void*)slab_mem, num_blocks);
-    printf("Slab allocator initialized at %p with %d blocks\n", slab_mem, num_blocks);
-    */
 
     //run_buddy_tests();
     //run_slab_tests();

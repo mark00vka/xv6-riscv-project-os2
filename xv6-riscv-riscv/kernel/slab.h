@@ -3,6 +3,8 @@
 
 #define BLOCK_SIZE (4096)
 #define CACHE_NAME_LEN 32
+// Number of 4KB blocks reserved at top of physical memory for slab/buddy region
+#define SLAB_RESERVED_BLOCKS 1024
 
 #include "types.h"
 #include "spinlock.h"

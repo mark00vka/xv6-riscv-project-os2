@@ -20,6 +20,7 @@
 #include "fs.h"
 #include "buf.h"
 #include "file.h"
+#include "slab.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 // there should be one superblock per disk device, but we run with
@@ -176,7 +177,7 @@ bfree(int dev, uint b)
 
 struct {
   struct spinlock lock;
-  struct inode inode[NINODE];
+  struct inode *inode;
 } itable;
 
 void
@@ -185,7 +186,11 @@ iinit()
   int i = 0;
   
   initlock(&itable.lock, "itable");
+  itable.inode = (struct inode*)kmalloc(sizeof(struct inode) * NINODE);
+  if(itable.inode == 0)
+    panic("itable alloc");
   for(i = 0; i < NINODE; i++) {
+    memset(&itable.inode[i], 0, sizeof(struct inode));
     initsleeplock(&itable.inode[i].lock, "inode");
   }
 }
