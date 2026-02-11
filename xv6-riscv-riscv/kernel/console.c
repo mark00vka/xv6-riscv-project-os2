@@ -26,6 +26,9 @@
 #define BACKSPACE 0x100  // erase the last output character
 #define C(x)  ((x)-'@')  // Control-x
 
+// Console input buffer size
+#define INPUT_BUF_SIZE 128
+
 //
 // send one character to the uart, but don't use
 // interrupts or sleep(). safe to be called from
@@ -43,16 +46,18 @@ consputc(int c)
   }
 }
 
-struct {
+// Console state, allocated via kernel allocator
+struct console {
   struct spinlock lock;
   
   // input circular buffer
-#define INPUT_BUF_SIZE 128
   char *buf;
   uint r;  // Read index
   uint w;  // Write index
   uint e;  // Edit index
-} cons;
+};
+
+static struct console *cons;
 
 //
 // user write() system calls to the console go here.
@@ -91,25 +96,25 @@ consoleread(int user_dst, uint64 dst, int n)
   char cbuf;
 
   target = n;
-  acquire(&cons.lock);
+  acquire(&cons->lock);
   while(n > 0){
     // wait until interrupt handler has put some
     // input into cons.buffer.
-    while(cons.r == cons.w){
+    while(cons->r == cons->w){
       if(killed(myproc())){
-        release(&cons.lock);
+        release(&cons->lock);
         return -1;
       }
-      sleep(&cons.r, &cons.lock);
+      sleep(&cons->r, &cons->lock);
     }
 
-    c = cons.buf[cons.r++ % INPUT_BUF_SIZE];
+    c = cons->buf[cons->r++ % INPUT_BUF_SIZE];
 
     if(c == C('D')){  // end-of-file
       if(n < target){
         // Save ^D for next time, to make sure
         // caller gets a 0-byte result.
-        cons.r--;
+        cons->r--;
       }
       break;
     }
@@ -128,7 +133,7 @@ consoleread(int user_dst, uint64 dst, int n)
       break;
     }
   }
-  release(&cons.lock);
+  release(&cons->lock);
 
   return target - n;
 }
@@ -142,57 +147,63 @@ consoleread(int user_dst, uint64 dst, int n)
 void
 consoleintr(int c)
 {
-  acquire(&cons.lock);
+  acquire(&cons->lock);
 
   switch(c){
   case C('P'):  // Print process list.
     procdump();
     break;
   case C('U'):  // Kill line.
-    while(cons.e != cons.w &&
-          cons.buf[(cons.e-1) % INPUT_BUF_SIZE] != '\n'){
-      cons.e--;
+    while(cons->e != cons->w &&
+          cons->buf[(cons->e-1) % INPUT_BUF_SIZE] != '\n'){
+      cons->e--;
       consputc(BACKSPACE);
     }
     break;
   case C('H'): // Backspace
   case '\x7f': // Delete key
-    if(cons.e != cons.w){
-      cons.e--;
+    if(cons->e != cons->w){
+      cons->e--;
       consputc(BACKSPACE);
     }
     break;
   default:
-    if(c != 0 && cons.e-cons.r < INPUT_BUF_SIZE){
+    if(c != 0 && cons->e-cons->r < INPUT_BUF_SIZE){
       c = (c == '\r') ? '\n' : c;
 
       // echo back to the user.
       consputc(c);
 
       // store for consumption by consoleread().
-      cons.buf[cons.e++ % INPUT_BUF_SIZE] = c;
+      cons->buf[cons->e++ % INPUT_BUF_SIZE] = c;
 
-      if(c == '\n' || c == C('D') || cons.e-cons.r == INPUT_BUF_SIZE){
+      if(c == '\n' || c == C('D') || cons->e-cons->r == INPUT_BUF_SIZE){
         // wake up consoleread() if a whole line (or end-of-file)
         // has arrived.
-        cons.w = cons.e;
-        wakeup(&cons.r);
+        cons->w = cons->e;
+        wakeup(&cons->r);
       }
     }
     break;
   }
   
-  release(&cons.lock);
+  release(&cons->lock);
 }
 
 void
 consoleinit(void)
 {
-  initlock(&cons.lock, "cons");
+  // Allocate console structure via our kernel allocator
+  cons = (struct console*)kmalloc(sizeof(*cons));
+  if(cons == 0)
+    panic("console alloc");
+  memset(cons, 0, sizeof(*cons));
+
+  initlock(&cons->lock, "cons");
 
   // allocate input buffer via small-buffer allocator
-  cons.buf = (char*)kmalloc(INPUT_BUF_SIZE);
-  if(cons.buf == 0)
+  cons->buf = (char*)kmalloc(INPUT_BUF_SIZE);
+  if(cons->buf == 0)
     panic("console buf alloc");
 
   uartinit();
